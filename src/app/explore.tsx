@@ -1,180 +1,163 @@
-import { Image } from 'expo-image';
-import { SymbolView } from 'expo-symbols';
-import { Platform, Pressable, ScrollView, StyleSheet } from 'react-native';
+import { useState } from 'react';
+import { Link } from 'expo-router';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ExternalLink } from '@/components/external-link';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Collapsible } from '@/components/ui/collapsible';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { ServiceCard } from '../components/service-card';
 
-export default function TabTwoScreen() {
-  const safeAreaInsets = useSafeAreaInsets();
-  const insets = {
-    ...safeAreaInsets,
-    bottom: safeAreaInsets.bottom + BottomTabInset + Spacing.three,
-  };
-  const theme = useTheme();
+const services = [
+  {
+    icon: '🪪',
+    title: 'Dukcapil',
+    description: 'Informasi layanan KTP, Kartu Keluarga, dan akta.',
+  },
+  {
+    icon: '🏥',
+    title: 'Kesehatan',
+    description: 'Informasi puskesmas dan layanan kesehatan.',
+  },
+  {
+    icon: '🏛️',
+    title: 'Pajak PBB',
+    description: 'Informasi Pajak Bumi dan Bangunan.',
+  },
+  {
+    icon: '📣',
+    title: 'Lapor!',
+    description: 'Informasi pengaduan dan aspirasi masyarakat.',
+  },
+  {
+    icon: '📄',
+    title: 'Izin NIB',
+    description: 'Informasi Nomor Induk Berusaha.',
+  },
+  {
+    icon: '🎟️',
+    title: 'Antrean',
+    description: 'Informasi antrean pelayanan publik.',
+  },
+  {
+    icon: '🤝',
+    title: 'Bansos',
+    description: 'Informasi program bantuan sosial.',
+  },
+  {
+    icon: '🔐',
+    title: 'Profil IKD',
+    description: 'Informasi Identitas Kependudukan Digital.',
+  },
+];
 
-  const contentPlatformStyle = Platform.select({
-    android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
-    },
-    web: {
-      paddingTop: Spacing.six,
-      paddingBottom: Spacing.four,
-    },
-  });
+export default function ExploreScreen() {
+  const insets = useSafeAreaInsets();
+  const [query, setQuery] = useState('');
+
+  const filteredServices = services.filter((service) =>
+    service.title.toLowerCase().includes(query.trim().toLowerCase()),
+  );
 
   return (
-    <ScrollView
-      style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentInset={insets}
-      contentContainerStyle={[styles.contentContainer, contentPlatformStyle]}>
-      <ThemedView style={styles.container}>
-        <ThemedView style={styles.titleContainer}>
-          <ThemedText type="subtitle">Explore</ThemedText>
-          <ThemedText style={styles.centerText} themeColor="textSecondary">
-            This starter app includes example{'\n'}code to help you get started.
-          </ThemedText>
-
-          <ExternalLink href="https://docs.expo.dev" asChild>
-            <Pressable style={({ pressed }) => pressed && styles.pressed}>
-              <ThemedView type="backgroundElement" style={styles.linkButton}>
-                <ThemedText type="link">Expo documentation</ThemedText>
-                <SymbolView
-                  tintColor={theme.text}
-                  name={{ ios: 'arrow.up.right.square', android: 'link', web: 'link' }}
-                  size={12}
-                />
-              </ThemedView>
+    <View className="flex-1 bg-[#F5FAF6]">
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View
+          className="rounded-b-[24px] bg-[#28694F] px-5 pb-6"
+          style={{ paddingTop: insets.top + 16 }}
+        >
+          <Link href="/" asChild>
+            <Pressable
+              accessibilityRole="button"
+              className="mb-5 self-start rounded-lg bg-[#598F76] px-3 py-2"
+            >
+              <Text className="text-xs font-semibold text-white">
+                ‹ Beranda
+              </Text>
             </Pressable>
-          </ExternalLink>
-        </ThemedView>
+          </Link>
 
-        <ThemedView style={styles.sectionsWrapper}>
-          <Collapsible title="File-based routing">
-            <ThemedText type="small">
-              This app has two screens: <ThemedText type="code">src/app/index.tsx</ThemedText> and{' '}
-              <ThemedText type="code">src/app/explore.tsx</ThemedText>
-            </ThemedText>
-            <ThemedText type="small">
-              The layout file in <ThemedText type="code">src/app/_layout.tsx</ThemedText> sets up
-              the tab navigator.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/router/introduction">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+          <Text className="text-2xl font-bold text-white">
+            Layanan Publik
+          </Text>
 
-          <Collapsible title="Android, iOS, and web support">
-            <ThemedView type="backgroundElement" style={styles.collapsibleContent}>
-              <ThemedText type="small">
-                You can open this project on Android, iOS, and the web. To open the web version,
-                press <ThemedText type="smallBold">w</ThemedText> in the terminal running this
-                project.
-              </ThemedText>
-              <Image
-                source={require('@/assets/images/tutorial-web.png')}
-                style={styles.imageTutorial}
+          <Text className="mb-5 mt-2 text-xs leading-5 text-[#D9F2DF]">
+            Temukan layanan yang kamu butuhkan.
+          </Text>
+
+          <View className="h-11 flex-row items-center rounded-xl bg-white px-3">
+            <Text className="mr-2 text-lg">🔎</Text>
+
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Cari layanan..."
+              placeholderTextColor="#8799AF"
+              autoCapitalize="none"
+              returnKeyType="search"
+              className="h-full flex-1 text-sm text-[#183D2E]"
+            />
+
+            {query.length > 0 && (
+              <Pressable
+                onPress={() => setQuery('')}
+                accessibilityLabel="Hapus pencarian"
+                className="ml-2 p-2"
+              >
+                <Text className="text-base text-[#6D8276]">×</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+
+        <View
+          className="px-[15px] pt-5"
+          style={{ paddingBottom: insets.bottom + 24 }}
+        >
+          <View className="mb-3 flex-row items-center justify-between">
+            <Text className="text-sm font-bold text-[#183D2E]">
+              Semua Layanan
+            </Text>
+
+            <Text className="text-xs text-[#388F6B]">
+              {filteredServices.length} layanan
+            </Text>
+          </View>
+
+          <View className="flex-row flex-wrap justify-between">
+            {filteredServices.map((service) => (
+              <ServiceCard
+                key={service.title}
+                icon={service.icon}
+                title={service.title}
+                onPress={() =>
+                  Alert.alert(service.title, service.description)
+                }
               />
-            </ThemedView>
-          </Collapsible>
+            ))}
+          </View>
 
-          <Collapsible title="Images">
-            <ThemedText type="small">
-              For static images, you can use the <ThemedText type="code">@2x</ThemedText> and{' '}
-              <ThemedText type="code">@3x</ThemedText> suffixes to provide files for different
-              screen densities.
-            </ThemedText>
-            <Image source={require('@/assets/images/react-logo.png')} style={styles.imageReact} />
-            <ExternalLink href="https://reactnative.dev/docs/images">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
+          {filteredServices.length === 0 && (
+            <View className="items-center rounded-xl border border-[#D6EAD9] bg-white px-5 py-10">
+              <Text className="text-sm font-semibold text-[#183D2E]">
+                Layanan tidak ditemukan
+              </Text>
 
-          <Collapsible title="Light and dark mode components">
-            <ThemedText type="small">
-              This template has light and dark mode support. The{' '}
-              <ThemedText type="code">useColorScheme()</ThemedText> hook lets you inspect what the
-              user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-            </ThemedText>
-            <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-              <ThemedText type="linkPrimary">Learn more</ThemedText>
-            </ExternalLink>
-          </Collapsible>
-
-          <Collapsible title="Animations">
-            <ThemedText type="small">
-              This template includes an example of an animated component. The{' '}
-              <ThemedText type="code">src/components/ui/collapsible.tsx</ThemedText> component uses
-              the powerful <ThemedText type="code">react-native-reanimated</ThemedText> library to
-              animate opening this hint.
-            </ThemedText>
-          </Collapsible>
-        </ThemedView>
-        {Platform.OS === 'web' && <WebBadge />}
-      </ThemedView>
-    </ScrollView>
+              <Text className="mt-2 text-center text-xs text-[#6D8276]">
+                Coba cari dengan kata kunci lain.
+              </Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  scrollView: {
-    flex: 1,
-  },
-  contentContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  container: {
-    maxWidth: MaxContentWidth,
-    flexGrow: 1,
-  },
-  titleContainer: {
-    gap: Spacing.three,
-    alignItems: 'center',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.six,
-  },
-  centerText: {
-    textAlign: 'center',
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-  linkButton: {
-    flexDirection: 'row',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.five,
-    justifyContent: 'center',
-    gap: Spacing.one,
-    alignItems: 'center',
-  },
-  sectionsWrapper: {
-    gap: Spacing.five,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-  },
-  collapsibleContent: {
-    alignItems: 'center',
-  },
-  imageTutorial: {
-    width: '100%',
-    aspectRatio: 296 / 171,
-    borderRadius: Spacing.three,
-    marginTop: Spacing.two,
-  },
-  imageReact: {
-    width: 100,
-    height: 100,
-    alignSelf: 'center',
-  },
-});
