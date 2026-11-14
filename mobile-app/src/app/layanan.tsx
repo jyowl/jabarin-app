@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Alert, BackHandler, Pressable, ScrollView, StatusBar, Text, TextInput, View } from 'react-native';
+import { BackHandler, Pressable, ScrollView, StatusBar, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import CatalogScreen from '../components/services/catalog-screen';
 import { DirectoryRow } from '../components/services/directory-row';
@@ -37,9 +37,9 @@ export default function ServicesScreen() {
     </> : <>
       <LinearGradient colors={['#1B4332', '#2F7455']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ padding: 18, borderRadius: 20 }}><View className="h-12 w-12 items-center justify-center rounded-2xl bg-[#D8F3DC]"><Icon name="health" /></View><Text className="font-inter mt-3 text-2xl font-bold text-white">Kesehatan & BPJS</Text><Text className="font-inter mt-2 text-base leading-6 text-[#D8F3DC]">Temukan informasi JKN, fasilitas kesehatan, dan bantuan layanan.</Text></LinearGradient>
       <Text className="font-inter mb-4 mt-5 text-xl font-bold text-[#1B4332]">Layanan kesehatan</Text>
-      <DirectoryRow title="BPJS Kesehatan" description="Informasi kepesertaan JKN dan kanal resmi" icon="health" onPress={() => Alert.alert('BPJS Kesehatan', 'Informasi kepesertaan belum terhubung. Gunakan kanal resmi BPJS Kesehatan untuk informasi terkini.')} />
-      <DirectoryRow title="Antrean puskesmas" description="Lihat contoh antrean fasilitas kesehatan" icon="ticket" onPress={() => router.navigate('/antrean')} />
-      <View className="mt-2 flex-row rounded-2xl bg-[#ECF6EF] p-4"><Icon name="sparkle" /><View className="ml-3 flex-1"><Text className="font-inter font-bold text-[#1B4332]">Butuh panduan?</Text><Text className="font-inter mt-1 text-sm leading-5 text-[#51665C]">Asisten JABARIN belum tersedia.</Text></View></View>
+      <DirectoryRow title="BPJS Kesehatan" description="Informasi kepesertaan JKN dan kanal resmi" icon="health" onPress={() => router.setParams({ section: 'Katalog' })} />
+      <DirectoryRow title="Antrean puskesmas" description="Ambil dan pantau tiket antrean" icon="ticket" onPress={() => router.navigate('/antrean')} />
+      <Pressable accessibilityRole="button" onPress={() => router.navigate('/asisten')} className="mt-2 flex-row rounded-2xl bg-[#ECF6EF] p-4"><Icon name="sparkle" /><View className="ml-3 flex-1"><Text className="font-inter font-bold text-[#1B4332]">Butuh panduan?</Text><Text className="font-inter mt-1 text-sm leading-5 text-[#51665C]">Tanya Asisten JABARIN tentang layanan kesehatan.</Text></View><Icon name="right" size={20} /></Pressable>
     </>}
   </ScrollView></View>;
 }

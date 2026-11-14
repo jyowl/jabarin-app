@@ -36,9 +36,13 @@ func NewRouter(h *Handler, cfg *config.Config) *gin.Engine {
 		auth.POST("/login", h.Login)
 	}
 
-	// Katalog layanan bersifat publik agar bisa ditampilkan sebelum login.
+	// Katalog layanan dan log aduan publik bisa diakses sebelum login.
 	v1.GET("/services", h.ListServices)
 	v1.GET("/services/:slug", h.GetService)
+	v1.GET("/reports/public", h.ListPublicReports)
+
+	// Foto aduan disajikan sebagai berkas statis.
+	r.Static("/uploads", cfg.UploadDir)
 
 	secured := v1.Group("")
 	secured.Use(middleware.Auth(cfg.JWTSecret), middleware.RateLimit(240, time.Minute))
@@ -62,6 +66,7 @@ func NewRouter(h *Handler, cfg *config.Config) *gin.Engine {
 		secured.POST("/reports", h.CreateReport)
 		secured.GET("/reports", h.ListReports)
 		secured.GET("/reports/:ref", h.GetReport)
+		secured.POST("/uploads", h.Upload)
 
 		// Chat AI dibatasi lebih ketat karena memanggil Gemini.
 		chat := secured.Group("/chat")
