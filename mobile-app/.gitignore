@@ -61,3 +61,6 @@ coverage/
 # Local editor / AI settings
 .idea/
 .claude/settings.local.json
+
+
+DESIGN-SYSTEM.md

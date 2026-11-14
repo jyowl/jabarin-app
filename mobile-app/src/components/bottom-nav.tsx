@@ -1,4 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
+import { Icon, type IconName } from './ui/icon';
+import { useContext } from 'react';
+import { TextSizeContext } from './home/text-size';
 
 export type TabName =
   | 'Beranda'
@@ -13,12 +16,12 @@ type BottomNavProps = {
   bottomInset: number;
 };
 
-const tabs: { title: TabName; icon: string }[] = [
-  { title: 'Beranda', icon: '🏠' },
-  { title: 'Layanan', icon: '🗂️' },
-  { title: 'Lapor!', icon: '📣' },
-  { title: 'Antrean', icon: '🎟️' },
-  { title: 'IKD', icon: '🪪' },
+const tabs: { title: TabName; icon: IconName }[] = [
+  { title: 'Beranda', icon: 'home' },
+  { title: 'Layanan', icon: 'grid' },
+  { title: 'Lapor!', icon: 'report' },
+  { title: 'Antrean', icon: 'ticket' },
+  { title: 'IKD', icon: 'id' },
 ];
 
 export function BottomNav({
@@ -26,11 +29,19 @@ export function BottomNav({
   onSelect,
   bottomInset,
 }: BottomNavProps) {
+  const { largeText } = useContext(TextSizeContext);
   return (
-    <View
-      className="flex-row justify-around border-t border-[#D6EAD9] bg-white px-[7px] pt-[6px]"
-      style={{ paddingBottom: Math.max(bottomInset, 7) }}
-    >
+    <View className="bg-white px-3 pt-1" style={{ paddingBottom: Math.max(bottomInset, 12) }}>
+      <View
+        className="flex-row justify-around rounded-[20px] border border-[#DCE9E0] bg-white p-[5px]"
+        style={{
+          shadowColor: '#1B4332',
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.12,
+          shadowRadius: 10,
+          elevation: 4,
+        }}
+      >
       {tabs.map((tab) => {
         const selected = active === tab.title;
 
@@ -40,21 +51,23 @@ export function BottomNav({
             onPress={() => onSelect(tab.title)}
             accessibilityRole="tab"
             accessibilityState={{ selected }}
-            className={`h-9 w-[19%] items-center justify-center rounded-[9px] ${
+            className={`min-h-[58px] w-[19%] items-center justify-center rounded-[14px] ${
               selected ? 'bg-[#D9F2DF]' : 'bg-white'
             }`}
           >
-            <Text className="text-xs">{tab.icon}</Text>
+            <Icon name={tab.icon} size={22} color={tab.title === 'Lapor!' ? '#A6565A' : '#508267'} />
             <Text
-              className={`mt-[2px] text-[9px] font-semibold ${
-                selected ? 'text-[#183D2E]' : 'text-[#8494A8]'
+              style={largeText && { fontSize: 14 }}
+              className={`font-inter mt-[2px] text-center text-[10px] font-semibold ${
+                selected ? 'text-[#183D2E]' : 'text-[#51665C]'
               }`}
             >
-              {tab.title}
+              {tab.title === 'IKD' ? 'Profil IKD' : tab.title}
             </Text>
           </Pressable>
         );
       })}
+      </View>
     </View>
   );
 }
