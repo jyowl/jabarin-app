@@ -20,18 +20,26 @@ type Config struct {
 
 	CORSOrigins []string
 	SeedData    bool
+
+	// UploadDir menyimpan foto aduan warga yang dikirim lewat /api/v1/uploads.
+	UploadDir string
+	// PublicBaseURL dipakai untuk membentuk URL absolut berkas unggahan.
+	// Kosong berarti URL dibentuk dari header request.
+	PublicBaseURL string
 }
 
 func Load() *Config {
 	cfg := &Config{
-		Port:         env("PORT", "8080"),
-		Env:          env("APP_ENV", "development"),
-		DatabaseURL:  env("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/jabarin?sslmode=disable"),
-		JWTSecret:    env("JWT_SECRET", "jabarin-dev-secret-change-me"),
-		GeminiAPIKey: env("GEMINI_API_KEY", ""),
-		GeminiModel:  env("GEMINI_MODEL", "gemini-2.5-flash"),
-		CORSOrigins:  strings.Split(env("CORS_ORIGINS", "*"), ","),
-		SeedData:     env("SEED_DATA", "true") == "true",
+		Port:          env("PORT", "8080"),
+		Env:           env("APP_ENV", "development"),
+		DatabaseURL:   env("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/jabarin?sslmode=disable"),
+		JWTSecret:     env("JWT_SECRET", "jabarin-dev-secret-change-me"),
+		GeminiAPIKey:  env("GEMINI_API_KEY", ""),
+		GeminiModel:   env("GEMINI_MODEL", "gemini-2.5-flash"),
+		CORSOrigins:   strings.Split(env("CORS_ORIGINS", "*"), ","),
+		SeedData:      env("SEED_DATA", "true") == "true",
+		UploadDir:     env("UPLOAD_DIR", "uploads"),
+		PublicBaseURL: strings.TrimRight(env("PUBLIC_BASE_URL", ""), "/"),
 	}
 
 	ttl, err := time.ParseDuration(env("JWT_TTL", "720h"))

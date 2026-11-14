@@ -51,6 +51,65 @@ func (h *Handler) CreateReport(c *gin.Context) {
 	httpx.Created(c, report)
 }
 
+// publicReport adalah tampilan aman aduan untuk log publik: tanpa identitas pelapor.
+type publicReport struct {
+	RefNumber   string   `json:"ref_number"`
+	Category    string   `json:"category"`
+	Title       string   `json:"title"`
+	Description string   `json:"description"`
+	Location    string   `json:"location"`
+	Latitude    *float64 `json:"latitude,omitempty"`
+	Longitude   *float64 `json:"longitude,omitempty"`
+	Status      string   `json:"status"`
+	Response    string   `json:"response"`
+	CreatedAt   string   `json:"created_at"`
+	UpdatedAt   string   `json:"updated_at"`
+}
+
+// ListPublicReports menampilkan aduan warga tanpa data pribadi.
+func (h *Handler) ListPublicReports(c *gin.Context) {
+	page, perPage, offset := httpx.Pagination(c)
+
+	query := h.db.Model(&models.Report{})
+	if category := c.Query("category"); category != "" {
+		query = query.Where("category = ?", category)
+	}
+	if status := c.Query("status"); status != "" {
+		query = query.Where("status = ?", status)
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		httpx.Internal(c, err)
+		return
+	}
+
+	var reports []models.Report
+	if err := query.Order("created_at DESC").Limit(perPage).Offset(offset).Find(&reports).Error; err != nil {
+		httpx.Internal(c, err)
+		return
+	}
+
+	out := make([]publicReport, 0, len(reports))
+	for _, r := range reports {
+		out = append(out, publicReport{
+			RefNumber:   r.RefNumber,
+			Category:    r.Category,
+			Title:       r.Title,
+			Description: r.Description,
+			Location:    r.Location,
+			Latitude:    r.Latitude,
+			Longitude:   r.Longitude,
+			Status:      string(r.Status),
+			Response:    r.Response,
+			CreatedAt:   r.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			UpdatedAt:   r.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		})
+	}
+
+	httpx.Paginated(c, out, httpx.BuildMeta(page, perPage, total))
+}
+
 func (h *Handler) ListReports(c *gin.Context) {
 	page, perPage, offset := httpx.Pagination(c)
 

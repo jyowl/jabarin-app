@@ -4,18 +4,22 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import { File, FileMode, Paths } from 'expo-file-system';
-import { Alert, BackHandler, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StatusBar, Text, TextInput, View } from 'react-native';
+import { Alert, BackHandler, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StatusBar, Text, TextInput, View, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '../components/ui/icon';
 import { parsePickerDraft, validateReport } from '../components/report/validation';
 import { imageType, validPhoto } from '../components/report/photo';
+import { api, ApiError, uploadPhoto, type Report } from '../lib/api';
+import { useAuth } from '../lib/auth';
 
 const categories = ['Jalan', 'Kebersihan', 'Administrasi', 'Lainnya'];
+const reportStatusLabel: Record<string, string> = { open: 'Diterima', in_progress: 'Sedang ditangani', resolved: 'Selesai', rejected: 'Ditolak' };
 const input = 'font-inter min-h-12 rounded-xl border border-[#74C69D] bg-white px-3 py-2 text-base text-[#172B22]';
 const label = 'font-inter mb-2 text-sm font-bold text-[#1B4332]';
 
 export default function ReportScreen() {
   const insets = useSafeAreaInsets();
+  const { token } = useAuth();
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
   const [district, setDistrict] = useState('');
@@ -27,6 +31,8 @@ export default function ReportScreen() {
   const [showDetail, setShowDetail] = useState(false);
   const [error, setError] = useState('');
   const [restoring, setRestoring] = useState(Platform.OS === 'android');
+  const [report, setReport] = useState<Report | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   async function acceptPhoto(asset: ImagePicker.ImagePickerAsset) {
     let size: number;
@@ -115,35 +121,62 @@ export default function ReportScreen() {
     if (!message) { Keyboard.dismiss(); setReview(true); }
   }
 
+  async function submitReport() {
+    if (!token) {
+      Alert.alert('Masuk diperlukan', 'Masuk ke akun warga untuk mengirim laporan.', [
+        { text: 'Batal', style: 'cancel' },
+        { text: 'Masuk', onPress: () => router.navigate('/masuk') },
+      ]);
+      return;
+    }
+    setSubmitting(true);
+    setError('');
+    try {
+      let photoUrls: string[] = [];
+      if (photo) {
+        const upload = await uploadPhoto({ uri: photo.uri, mimeType: photo.mimeType, fileName: photo.fileName });
+        photoUrls = [upload.url];
+      }
+      const created = await api.createReport({
+        category,
+        title: title.trim(),
+        description: details.trim(),
+        location: district.trim(),
+        photo_urls: photoUrls,
+      });
+      setReport(created);
+      setSimulation(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Laporan gagal dikirim.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   if (restoring) return <View className="flex-1 items-center justify-center bg-white"><Text className="font-inter text-[#51665C]">Memulihkan draf…</Text></View>;
 
   if (review) return <View className="flex-1 bg-white"><StatusBar barStyle="dark-content" />
     <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingTop: insets.top + 14, paddingBottom: 24 }}>
-      <View className="mb-5 flex-row items-center"><Pressable accessibilityRole="button" accessibilityLabel={showDetail ? 'Kembali ke simulasi pengiriman' : simulation ? 'Kembali ke tinjau laporan' : 'Ubah isi laporan'} onPress={() => showDetail ? setShowDetail(false) : simulation ? setSimulation(false) : setReview(false)} className="mr-3 h-12 w-12 items-center justify-center rounded-2xl bg-[#ECF6EF]"><Icon name="left" /></Pressable><Text className="font-inter flex-1 text-2xl font-bold text-[#1B4332]">{showDetail ? 'Detail Laporan' : simulation ? 'Lapor Warga' : 'Tinjau laporan'}</Text></View>
+      <View className="mb-5 flex-row items-center"><Pressable accessibilityRole="button" accessibilityLabel={showDetail ? 'Kembali ke laporan terkirim' : simulation ? 'Kembali ke tinjau laporan' : 'Ubah isi laporan'} onPress={() => showDetail ? setShowDetail(false) : simulation ? setSimulation(false) : setReview(false)} className="mr-3 h-12 w-12 items-center justify-center rounded-2xl bg-[#ECF6EF]"><Icon name="left" /></Pressable><Text className="font-inter flex-1 text-2xl font-bold text-[#1B4332]">{showDetail ? 'Detail Laporan' : simulation ? 'Lapor Warga' : 'Tinjau laporan'}</Text></View>
       {showDetail ? <>
-        <Text className="font-inter mb-3 text-sm leading-5 text-[#51665C]">Simulasi tampilan · Laporan belum dikirim atau disimpan.</Text>
-        <View className="rounded-[20px] border border-[#DCE9E0] bg-[#F6F9F7] p-4"><View className="flex-row flex-wrap items-center justify-between gap-2"><View className="flex-row items-center"><Icon name={category === 'Jalan' ? 'road' : category === 'Kebersihan' ? 'trash' : 'file'} size={20} /><Text className="font-inter ml-2 text-sm font-bold text-[#1B4332]">{category}</Text></View><Text className="font-inter overflow-hidden rounded-full bg-[#FFF1D2] px-3 py-1 text-xs font-bold text-[#6F4C0A]">Contoh status</Text></View><Text className="font-inter mt-3 text-lg font-bold text-[#172B22]">{title.trim()}</Text><View className="mt-2 flex-row items-center"><Icon name="pin" size={18} /><Text className="font-inter ml-2 flex-1 text-sm text-[#51665C]">{district.trim()}</Text></View><View className="my-3 h-px bg-[#DCE9E0]" /><Text className="font-inter text-xs font-bold text-[#51665C]">#JBR-02481 · Tiket contoh</Text></View>
-        <LinearGradient colors={['#E4F2E8', '#F3FAF5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ marginTop: 16, borderRadius: 16, padding: 16, flexDirection: 'row' }}><Icon name="calendar" size={21} /><View className="ml-3 flex-1"><Text className="font-inter text-base font-bold text-[#1B4332]">Estimasi penanganan belum tersedia</Text><Text className="font-inter mt-1 text-sm leading-5 text-[#51665C]">Estimasi resmi akan tersedia setelah layanan terhubung.</Text></View></LinearGradient>
-        <Text className="font-inter mb-3 mt-5 text-xl font-bold text-[#1B4332]">Riwayat penanganan</Text>
-        <View className="rounded-[20px] border border-[#DCE9E0] bg-white p-4"><Text className="font-inter mb-3 text-sm text-[#51665C]">Contoh alur, bukan riwayat laporan Anda.</Text>{[
-          { title: 'Sedang ditangani', description: 'Contoh: tim lapangan dijadwalkan untuk mengecek lokasi.', icon: 'calendar' as const },
-          { title: 'Diverifikasi', description: 'Contoh: petugas memeriksa dan meneruskan laporan.', icon: 'file' as const },
-          { title: 'Diterima', description: 'Contoh: tiket masuk antrean verifikasi.', icon: 'ticket' as const },
-        ].map((item) => <View key={item.title} className="mb-4 flex-row"><LinearGradient colors={['#C7E9D0', '#E7F7EA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' }}><Icon name={item.icon} size={21} /></LinearGradient><View className="ml-3 flex-1"><Text className="font-inter text-base font-bold text-[#1B4332]">{item.title}</Text><Text className="font-inter mt-1 text-sm leading-5 text-[#172B22]">{item.description}</Text></View></View>)}</View>
-        <LinearGradient colors={['#E4F2E8', '#F3FAF5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ marginTop: 16, borderRadius: 16, padding: 16, flexDirection: 'row' }}><Icon name="sparkle" size={21} /><View className="ml-3 flex-1"><Text className="font-inter text-base font-bold text-[#1B4332]">Mengapa kategori {category}?</Text><Text className="font-inter mt-1 text-sm leading-5 text-[#51665C]">Kategori dipilih dalam formulir. Saran AI dan verifikasi petugas belum tersedia.</Text></View></LinearGradient>
+        <Text className="font-inter mb-3 text-sm leading-5 text-[#51665C]">Detail laporan yang tersimpan di layanan JABARIN.</Text>
+        <View className="rounded-[20px] border border-[#DCE9E0] bg-[#F6F9F7] p-4"><View className="flex-row flex-wrap items-center justify-between gap-2"><View className="flex-row items-center"><Icon name={category === 'Jalan' ? 'road' : category === 'Kebersihan' ? 'trash' : 'file'} size={20} /><Text className="font-inter ml-2 text-sm font-bold text-[#1B4332]">{category}</Text></View><Text className="font-inter overflow-hidden rounded-full bg-[#FFF1D2] px-3 py-1 text-xs font-bold text-[#6F4C0A]">{reportStatusLabel[report?.status ?? 'open']}</Text></View><Text className="font-inter mt-3 text-lg font-bold text-[#172B22]">{report?.title ?? title.trim()}</Text><View className="mt-2 flex-row items-center"><Icon name="pin" size={18} /><Text className="font-inter ml-2 flex-1 text-sm text-[#51665C]">{report?.location ?? district.trim()}</Text></View><View className="my-3 h-px bg-[#DCE9E0]" /><Text className="font-inter text-xs font-bold text-[#51665C]">#{report?.ref_number ?? '—'} · {report ? new Date(report.created_at).toLocaleString('id-ID') : ''}</Text></View>
+        {report?.description ? <Text className="font-inter mt-3 text-base leading-6 text-[#172B22]">{report.description}</Text> : null}
+        <LinearGradient colors={['#E4F2E8', '#F3FAF5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ marginTop: 16, borderRadius: 16, padding: 16, flexDirection: 'row' }}><Icon name="calendar" size={21} /><View className="ml-3 flex-1"><Text className="font-inter text-base font-bold text-[#1B4332]">Status: {reportStatusLabel[report?.status ?? 'open']}</Text><Text className="font-inter mt-1 text-sm leading-5 text-[#51665C]">Petugas akan memverifikasi laporan dan menindaklanjuti sesuai kategori.</Text></View></LinearGradient>
+        {report?.response ? <View className="mt-4 rounded-[20px] border border-[#DCE9E0] bg-white p-4"><Text className="font-inter text-sm font-bold text-[#1B4332]">Tanggapan petugas</Text><Text className="font-inter mt-2 text-base leading-6 text-[#172B22]">{report.response}</Text></View> : null}
+        <LinearGradient colors={['#E4F2E8', '#F3FAF5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ marginTop: 16, borderRadius: 16, padding: 16, flexDirection: 'row' }}><Icon name="sparkle" size={21} /><View className="ml-3 flex-1"><Text className="font-inter text-base font-bold text-[#1B4332]">Kategori {category}</Text><Text className="font-inter mt-1 text-sm leading-5 text-[#51665C]">Kategori dipilih saat membuat laporan; verifikasi akhir dilakukan petugas.</Text></View></LinearGradient>
       </> : simulation ? <>
-        <View className="mb-6 mt-6 items-center"><LinearGradient colors={['#C7E9D0', '#E7F7EA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ height: 76, width: 76, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}><Icon name="file" size={30} /></LinearGradient><Text className="font-inter mt-4 text-center text-[27px] font-bold text-[#1B4332]">Simulasi pengiriman</Text><Text className="font-inter mt-3 text-center text-base leading-6 text-[#51665C]">Laporan belum dikirim atau disimpan. Layanan pengiriman resmi belum terhubung.</Text></View>
-        <View className="rounded-[20px] border border-[#DCE9E0] bg-[#F6F9F7] p-4"><Text className="font-inter self-start overflow-hidden rounded-full bg-[#D8F3DC] px-3 py-1 text-xs font-bold text-[#1B4332]">Contoh tiket · Bukan tiket resmi</Text><Text className="font-inter mt-4 text-2xl font-bold text-[#1B4332]">#JBR-02481</Text><Text className="font-inter mt-3 text-base font-bold text-[#172B22]">{title.trim()}</Text></View>
+        <View className="mb-6 mt-6 items-center"><LinearGradient colors={['#C7E9D0', '#E7F7EA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ height: 76, width: 76, borderRadius: 20, alignItems: 'center', justifyContent: 'center' }}><Icon name="file" size={30} /></LinearGradient><Text className="font-inter mt-4 text-center text-[27px] font-bold text-[#1B4332]">Laporan terkirim</Text><Text className="font-inter mt-3 text-center text-base leading-6 text-[#51665C]">Laporan Anda sudah diterima layanan JABARIN dan masuk antrean verifikasi petugas.</Text></View>
+        <View className="rounded-[20px] border border-[#DCE9E0] bg-[#F6F9F7] p-4"><Text className="font-inter self-start overflow-hidden rounded-full bg-[#D8F3DC] px-3 py-1 text-xs font-bold text-[#1B4332]">Nomor laporan</Text><Text className="font-inter mt-4 text-2xl font-bold text-[#1B4332]">#{report?.ref_number}</Text><Text className="font-inter mt-3 text-base font-bold text-[#172B22]">{report?.title ?? title.trim()}</Text></View>
         <Pressable accessibilityRole="button" onPress={() => setShowDetail(true)} className="mt-4"><LinearGradient colors={['#1B4332', '#276247']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ minHeight: 56, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12 }}><Icon name="list" color="white" size={20} /><Text className="font-inter ml-2 text-center text-base font-bold text-white">Pantau laporan saya</Text></LinearGradient></Pressable>
         <Pressable accessibilityRole="button" onPress={() => router.navigate('/laporan-publik')} className="mt-4 min-h-14 flex-row items-center justify-center rounded-2xl border border-[#DCE9E0] px-4"><Icon name="arrow" size={20} /><Text className="font-inter ml-2 text-center text-base font-bold text-[#1B4332]">Buka log laporan publik</Text></Pressable>
       </> : <>
         <Text className="font-inter text-[27px] font-bold leading-9 text-[#1B4332]">Periksa laporan Anda</Text><Text className="font-inter mt-2 text-base leading-6 text-[#51665C]">Pastikan isi laporan sesuai sebelum melanjutkan.</Text>
         <View className="mt-4 rounded-[20px] border border-[#DCE9E0] bg-[#F6F9F7] p-4"><LinearGradient colors={['#C7E9D0', '#E7F7EA']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ alignSelf: 'flex-start', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 }}><Text className="font-inter text-xs font-bold text-[#1B4332]">{category}</Text></LinearGradient><Text className="font-inter mt-3 text-xl font-bold text-[#1B4332]">{title.trim()}</Text><Text className="font-inter mt-2 text-sm font-semibold text-[#51665C]">{district.trim()}</Text><Text className="font-inter mt-3 text-base leading-6 text-[#172B22]">{details.trim()}</Text>{photo && <Image source={{ uri: photo.uri }} style={{ width: '100%', height: 180, marginTop: 12, borderRadius: 12 }} contentFit="contain" accessibilityLabel="Foto bukti laporan" />}</View>
-        <LinearGradient colors={['#E4F2E8', '#F3FAF5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ marginTop: 16, borderRadius: 20, borderWidth: 1, borderColor: '#74C69D', padding: 16 }}><Text className="font-inter text-xs font-bold text-[#1B4332]">✧  SARAN TUJUAN</Text><Text className="font-inter mt-3 text-lg font-bold text-[#1B4332]">Tujuan laporan belum tersedia</Text><Text className="font-inter mt-2 text-sm leading-5 text-[#51665C]">Saran AI dan tujuan instansi belum terhubung. Petugas perlu memeriksa kategori dan tujuan sebelum laporan diteruskan.</Text></LinearGradient>
-        <LinearGradient colors={['#E4F2E8', '#F3FAF5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ marginTop: 16, borderRadius: 16, padding: 16 }}><Text className="font-inter text-sm font-bold text-[#1B4332]">Informasi yang dapat tampil di log publik</Text><Text className="font-inter mt-1 text-sm leading-5 text-[#51665C]">Judul, kategori, lokasi umum, dan status penanganan.</Text></LinearGradient>
-        <Text className="font-inter mt-4 text-sm leading-5 text-[#51665C]">Pratinjau saja. Laporan dan foto belum dikirim atau disimpan.</Text>
-        {/* shortcut: simulasi tanpa pengiriman atau tiket resmi, hubungkan layanan laporan sebelum mengaktifkan pengiriman. */}
-        <Pressable accessibilityRole="button" onPress={() => setSimulation(true)} className="mt-4"><LinearGradient colors={['#1B4332', '#276247']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ minHeight: 56, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12 }}><Icon name="send" color="white" size={20} /><Text className="font-inter ml-2 text-center text-base font-bold text-white">Simulasikan pengiriman</Text></LinearGradient></Pressable>
+        <LinearGradient colors={['#E4F2E8', '#F3FAF5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ marginTop: 16, borderRadius: 20, borderWidth: 1, borderColor: '#74C69D', padding: 16 }}><Text className="font-inter text-xs font-bold text-[#1B4332]">✧  KATEGORI LAPORAN</Text><Text className="font-inter mt-3 text-lg font-bold text-[#1B4332]">{category}</Text><Text className="font-inter mt-2 text-sm leading-5 text-[#51665C]">Petugas akan memeriksa kategori dan meneruskan laporan ke instansi terkait.</Text></LinearGradient>
+        <LinearGradient colors={['#E4F2E8', '#F3FAF5']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ marginTop: 16, borderRadius: 16, padding: 16 }}><Text className="font-inter text-sm font-bold text-[#1B4332]">Informasi yang tampil di log publik</Text><Text className="font-inter mt-1 text-sm leading-5 text-[#51665C]">Judul, kategori, lokasi umum, dan status penanganan. Identitas pelapor tidak ditampilkan.</Text></LinearGradient>
+        {error ? <Text accessibilityRole="alert" className="font-inter mt-4 text-sm text-[#A12626]">{error}</Text> : null}
+        <Pressable accessibilityRole="button" disabled={submitting} onPress={submitReport} className="mt-4" style={{ opacity: submitting ? 0.7 : 1 }}><LinearGradient colors={['#1B4332', '#276247']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={{ minHeight: 56, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12 }}>{submitting ? <ActivityIndicator color="white" /> : <><Icon name="send" color="white" size={20} /><Text className="font-inter ml-2 text-center text-base font-bold text-white">Kirim laporan</Text></>}</LinearGradient></Pressable>
         <Pressable accessibilityRole="button" onPress={() => setReview(false)} className="mt-4 min-h-14 flex-row items-center justify-center rounded-2xl border border-[#DCE9E0] px-4"><Icon name="left" size={20} /><Text className="font-inter ml-2 text-center text-base font-bold text-[#1B4332]">Ubah isi laporan</Text></Pressable>
       </>}
     </ScrollView>
@@ -163,6 +196,7 @@ export default function ReportScreen() {
       </LinearGradient>
       <View className="mt-4 rounded-[20px] border border-[#DCE9E0] bg-white p-3">
         <Text className="font-inter mb-4 text-xl font-bold text-[#1B4332]">Buat laporan baru</Text>
+        {!token ? <Pressable accessibilityRole="button" onPress={() => router.navigate('/masuk')} className="mb-4 rounded-xl bg-[#ECF6EF] p-3"><Text className="font-inter text-sm font-bold text-[#1B4332]">Masuk agar laporan bisa dikirim dan dipantau.</Text></Pressable> : null}
         <Text className={label}>Judul laporan</Text><TextInput accessibilityLabel="Judul laporan" value={title} onChangeText={setTitle} placeholder="Contoh: Jalan berlubang di Jl. Sapan" placeholderTextColor="#51665C" className={input} />
         <View className="mt-4 flex-row gap-3"><View className="flex-1"><Text className={label}>Kategori</Text><Pressable accessibilityRole="button" accessibilityLabel={`Kategori: ${category || 'belum dipilih'}`} onPress={() => setShowCategories(true)} className="min-h-12 flex-row items-center justify-between rounded-xl border border-[#74C69D] px-3"><Text className="font-inter flex-1 text-base text-[#172B22]">{category || 'Pilih kategori'}</Text><Icon name="right" size={18} /></Pressable></View><View className="flex-1"><Text className={label}>Kecamatan</Text><TextInput accessibilityLabel="Kecamatan" value={district} onChangeText={setDistrict} placeholder="Nama kecamatan" placeholderTextColor="#51665C" className={input} /></View></View>
         <Text className={`${label} mt-4`}>Detail kejadian / keluhan</Text><TextInput accessibilityLabel="Detail kejadian atau keluhan" value={details} onChangeText={setDetails} placeholder="Ceritakan kejadian dan lokasi secara jelas" placeholderTextColor="#51665C" multiline textAlignVertical="top" className={`${input} min-h-[76px]`} />

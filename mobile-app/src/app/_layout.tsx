@@ -4,6 +4,7 @@ import { Tabs } from 'expo-router';
 import { BottomNav, type TabName } from '../components/bottom-nav';
 import { useState } from 'react';
 import { TextSizeContext } from '../components/home/text-size';
+import { AuthProvider } from '../lib/auth';
 
 const routeByTab: Record<TabName, string> = {
   Beranda: 'index', Layanan: 'layanan', 'Lapor!': 'lapor', Antrean: 'antrean', IKD: 'ikd',
@@ -18,8 +19,9 @@ export default function RootLayout() {
   if (error) throw error;
   if (!loaded) return null;
   return (
+    <AuthProvider>
     <TextSizeContext.Provider value={{ largeText, toggleTextSize: () => setLargeText((value) => !value) }}>
-    <Tabs screenOptions={{ headerShown: false }} tabBar={({ state, emitter, navigateToTab, insets }) => ['asisten', 'dasar-jawaban'].includes(state.routes[state.index].name) ? null : (
+    <Tabs screenOptions={{ headerShown: false }} tabBar={({ state, emitter, navigateToTab, insets }) => ['asisten', 'dasar-jawaban', 'masuk'].includes(state.routes[state.index].name) ? null : (
       <BottomNav active={tabByRoute[state.routes[state.index].name] ?? 'Beranda'}
         bottomInset={insets.bottom}
         onSelect={(tab) => {
@@ -39,7 +41,9 @@ export default function RootLayout() {
       <Tabs.Screen name="dasar-jawaban" />
       <Tabs.Screen name="laporan-publik" />
       <Tabs.Screen name="peta-laporan" />
+      <Tabs.Screen name="masuk" options={{ href: null }} />
     </Tabs>
     </TextSizeContext.Provider>
+    </AuthProvider>
   );
 }

@@ -18,6 +18,7 @@ export function ServiceListCard({ service, largeText, onApply }: Props) {
         </View>
       </View>
       <View className="my-4 h-px bg-brand-beige" />
+      <Text className="font-inter mb-3 leading-5 text-[#51665C]" style={{ fontSize: largeText ? 17 : 14 }}>{service.description}</Text>
       <View className="mb-3 flex-row flex-wrap">
         <Text className="font-inter mr-1 text-brand-green" style={{ fontSize: largeText ? 18 : 14 }}>⏱ Selesai {service.duration} •</Text>
         <Text className="font-inter font-bold text-brand-green" style={{ fontSize: largeText ? 18 : 14 }}>💳 {service.fee}</Text>
