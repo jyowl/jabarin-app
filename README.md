@@ -5,31 +5,83 @@ Jabarin adalah aplikasi layanan publik digital untuk warga Jawa Barat. Repositor
 - **`mobile-app/`** — aplikasi klien Expo / React Native (TypeScript).
 - **`service/`** — REST API Go (Gin + GORM + PostgreSQL) dengan asisten AI Gemini.
 
-Dokumen ini menjelaskan arsitektur menyeluruh: pembagian tanggung jawab, struktur kode, model data, kontrak API, subsistem AI, keamanan, cara menjalankan, dan status implementasi saat ini.
+Dokumen ini mencakup pengenalan proyek, dokumentasi teknis dan alur program, dokumentasi frontend dan backend, serta petunjuk menjalankan seluruh sistem di localhost.
 
 ---
 
 ## Daftar Isi
 
-1. [Arsitektur Sistem](#arsitektur-sistem)
-2. [Struktur Repositori](#struktur-repositori)
-3. [Mobile App](#mobile-app)
-4. [Backend Service](#backend-service)
-5. [Domain & Model Data](#domain--model-data)
-6. [Kontrak API](#kontrak-api)
-7. [Subsistem Asisten AI](#subsistem-asisten-ai)
-8. [Keamanan](#keamanan)
-9. [Menjalankan Proyek](#menjalankan-proyek)
-10. [Integrasi Mobile ↔ API](#integrasi-mobile--api)
-11. [Deployment](#deployment)
-12. [Konvensi Pengembangan](#konvensi-pengembangan)
-13. [Status & Catatan Teknis](#status--catatan-teknis)
+1. [Pengenalan Projek](#pengenalan-projek)
+2. [Technical Documentation](#technical-documentation)
+3. [Frontend Documentation](#frontend-documentation)
+4. [Backend Documentation](#backend-documentation)
+5. [Petunjuk Localhost](#petunjuk-localhost)
+6. [Integrasi Mobile ↔ API](#integrasi-mobile--api)
+7. [Deployment](#deployment)
+8. [Konvensi Pengembangan](#konvensi-pengembangan)
+9. [Status & Catatan Teknis](#status--catatan-teknis)
 
 ---
 
-## Arsitektur Sistem
+## Pengenalan Projek
 
-Jabarin memakai arsitektur **client–server** klasik dengan satu API terpusat. Mobile app tidak mengakses database secara langsung; seluruh data warga melewati API yang memegang autentikasi, otorisasi, validasi, dan integrasi pihak ketiga.
+### Gambaran Solusi
+
+Jabarin menyatukan layanan pemerintah yang biasanya tersebar di banyak kanal menjadi satu aplikasi mobile: warga dapat mencari informasi layanan, mengajukan berkas, mengambil antrean, mengirim aduan, dan mengaktifkan Identitas Kependudukan Digital (IKD) — semuanya dari satu akun.
+
+Solusi ini terdiri dari tiga lapisan:
+
+1. **Aplikasi warga** — antarmuka mobile-first berbahasa Indonesia untuk mengakses layanan.
+2. **API terpusat** — satu pintu data yang menangani identitas, pengajuan, antrean, aduan, dan katalog layanan.
+3. **Asisten AI "Jabarin"** — chatbot yang memahami konteks akun warga dan mengarahkan ke menu atau prosedur yang tepat.
+
+### Latar Belakang
+
+Warga sering harus menebak persyaratan dokumen, datang berulang ke kantor hanya untuk antre, dan menanyakan status berkas lewat jalur yang tidak terlacak. Informasi tersebar di situs, brosur, dan pesan berantai, sehingga pengalaman mengurus layanan publik terasa lambat dan tidak pasti. Jabarin menjawab masalah tersebut dengan:
+
+| Masalah | Pendekatan Jabarin |
+| --- | --- |
+| Persyaratan dokumen tidak jelas | Katalog layanan memuat deskripsi dan daftar syarat per layanan |
+| Status berkas tidak terlacak | Nomor registrasi + timeline status yang dapat dilacak |
+| Antrean panjang di kantor | Tiket antrean daring dengan estimasi waktu tunggu |
+| Aduan warga tidak transparan | Kanal "Lapor!" dengan nomor referensi dan status aduan |
+| Pertanyaan berulang ke petugas | Asisten AI 24/7 dengan konteks akun dan katalog layanan |
+| Identitas digital terpisah-pisah | Status dan aktivasi IKD terhubung ke profil warga |
+
+### Target Pengguna
+
+| Persona | Kebutuhan utama | Fitur yang dipakai |
+| --- | --- | --- |
+| **Warga umum (18–60 tahun)** | Mengurus dokumen dan pajak tanpa datang berulang | Beranda, Layanan, Pengajuan berkas, Lacak berkas |
+| **Warga lanjut usia / pendamping keluarga** | Panduan langkah demi langkah yang sederhana | Asisten AI, detail layanan + syarat |
+| **Pengunjung kantor layanan** | Memastikan tidak menunggu lama di lokasi | Tiket antrean + estimasi tunggu |
+| **Warga aktif lingkungan** | Melaporkan masalah infrastruktur/kebersihan | Lapor! + pelacakan aduan |
+| **Pelaku UMKM** | Informasi perizinan usaha | Katalog Izin NIB |
+| **Penerima/manfaat sosial** | Mengecek program bantuan | Katalog Bansos |
+
+Pengguna diasumsikan memiliki NIK 16 digit dan nomor telepon aktif, karena keduanya menjadi kredensial registrasi dan login.
+
+### Fitur Utama
+
+- **Katalog layanan** — 8 layanan awal (Dukcapil, Kesehatan, Pajak PBB, Lapor!, Izin NIB, Antrean, Bansos, Profil IKD) dengan pencarian dan filter kategori.
+- **Pengajuan berkas** — nomor registrasi `REG-YYYY-NNNN`, catatan, payload fleksibel, dan timeline status.
+- **Antrean daring** — tiket per layanan/lokasi/hari dengan kode berprefiks dan estimasi tunggu.
+- **Lapor!** — aduan dengan kategori, lokasi, koordinat, hingga 5 foto, dan nomor referensi `LPR-YYYY-NNNN`.
+- **IKD** — status identitas digital dan aktivasi pada profil warga.
+- **Dashboard** — satu panggilan API untuk seluruh isi layar Beranda.
+- **Asisten AI** — riwayat percakapan tersimpan, konteks akun, guardrail privasi, dan mode fallback tanpa API key.
+
+### Ruang Lingkup Versi Saat Ini
+
+Backend sudah berjalan lengkap untuk domain di atas. Aplikasi mobile masih berupa **UI shell**: layar Beranda dan katalog layanan sudah jadi, tetapi data masih statis dan belum memanggil API. Tab Lapor!, Antrean, dan IKD masih placeholder. Rincian ada di [Status & Catatan Teknis](#status--catatan-teknis).
+
+---
+
+## Technical Documentation
+
+### Arsitektur Sistem
+
+Jabarin memakai arsitektur **client–server** dengan satu API terpusat. Mobile app tidak pernah mengakses database langsung; seluruh data warga melewati API yang memegang autentikasi, otorisasi, validasi, dan integrasi pihak ketiga.
 
 ```mermaid
 flowchart LR
@@ -58,17 +110,7 @@ flowchart LR
     AI -->|"HTTPS"| GEM
 ```
 
-Prinsip yang dipakai:
-
-- **Satu pintu masuk** — semua operasi data lewat `/api/v1`, response selalu berbentuk envelope yang sama.
-- **Domain-oriented handler** — tiap berkas handler menangani satu domain (auth, applications, queue, reports, chat), bukan satu berkas raksasa.
-- **Stateless API** — autentikasi memakai JWT; server tidak menyimpan session login.
-- **Degradasi anggun** — bila API key AI tidak tersedia, chat tetap merespons (mode fallback) alih-alih error.
-- **Mobile-first UI** — komponen React Native dengan styling utility-first (NativeWind), aman terhadap notch dan gesture bar.
-
----
-
-## Struktur Repositori
+### Struktur Repositori
 
 ```text
 jabarin-app/
@@ -83,7 +125,7 @@ jabarin-app/
 │   │   │   └── service-card.tsx
 │   │   ├── constants/theme.ts  # Warna, font, spacing, inset
 │   │   └── hooks/              # use-color-scheme, use-theme
-│   ├── assets/images/          # Banner & ikon
+│   ├── assets/                 # Gambar, ikon aplikasi
 │   ├── app.json                # Konfigurasi Expo
 │   ├── global.css              # Entry Tailwind/NativeWind
 │   ├── tailwind.config.js
@@ -112,32 +154,137 @@ jabarin-app/
 └── README.md                   # Dokumen ini
 ```
 
+### Diagram Alur Program
+
+**A. Boot service**
+
+```mermaid
+flowchart TD
+    S([go run ./cmd/api]) --> C[config.Load<br/>baca environment]
+    C --> D[database.Connect<br/>pool PostgreSQL]
+    D -->|gagal| X1([log.Fatalf])
+    D --> M[database.Migrate<br/>pgcrypto + AutoMigrate]
+    M -->|gagal| X1
+    M --> SD{SEED_DATA?}
+    SD -->|true| SEED[seed.Services<br/>upsert 8 layanan]
+    SD -->|false| L
+    SEED -->|gagal| W[log warning, lanjut]
+    SEED --> L[ListenAndServe :PORT]
+    W --> L
+    L --> SIG[SIGINT / SIGTERM]
+    SIG --> SH[Shutdown 15s]
+```
+
+**B. Siklus satu request**
+
+```mermaid
+flowchart LR
+    R([HTTP request]) --> REC[Recovery]
+    REC --> CORS[CORS / preflight]
+    CORS -->|OPTIONS| O[204]
+    CORS --> RL[RateLimit per IP/user]
+    RL -->|lewat batas| E429[429 + Retry-After]
+    RL --> AUTH{Butuh login?}
+    AUTH -->|tidak| H[Handler domain]
+    AUTH -->|ya| JWT{JWT valid?}
+    JWT -->|tidak| E401[401]
+    JWT -->|ya| H
+    H --> DB[(PostgreSQL)]
+    H -->|chat| GEM[Gemini API]
+    H --> ENV[httpx envelope]
+    ENV --> OUT([JSON response])
+```
+
+**C. Alur warga (end-to-end)**
+
+```mermaid
+flowchart TD
+    OPEN[Buka aplikasi] --> HOME[Beranda<br/>dashboard summary]
+    HOME --> CARI[Cari layanan / kategori]
+    CARI --> DETAIL[Detail layanan + syarat]
+    DETAIL --> AJU[Isi pengajuan]
+    AJU --> REF[Terima nomor REG<br/>timeline: submitted]
+    REF --> LACAK[Lacak berkas]
+    HOME --> TIKET[Ambil tiket antrean]
+    TIKET --> KODE[Kode + estimasi tunggu]
+    HOME --> LAPOR[Kirim aduan Lapor!]
+    LAPOR --> LPR[Nomor LPR + status open]
+    HOME --> IKD[Aktivasi IKD]
+    HOME --> CHAT[Tanya Asisten AI]
+    CHAT --> SARAN[Jawaban + sesi tersimpan]
+```
+
+### Prinsip Arsitektur
+
+- **Satu pintu masuk** — semua operasi data lewat `/api/v1` dengan envelope respons yang sama.
+- **Domain-oriented handler** — tiap berkas handler menangani satu domain, bukan satu berkas raksasa.
+- **Stateless API** — autentikasi memakai JWT; server tidak menyimpan session login.
+- **Degradasi anggun** — tanpa API key AI, chat tetap merespons mode fallback alih-alih error.
+- **Mobile-first UI** — komponen React Native dengan styling utility-first dan aman terhadap notch/gesture bar.
+
+### Keamanan
+
+| Area | Implementasi | Catatan |
+| --- | --- | --- |
+| Password | bcrypt default cost | Panjang 8–72 divalidasi saat registrasi |
+| Token | JWT HS256, klaim `uid` + `nik`, issuer `jabarin-service`, TTL `720h` | Tidak ada refresh token / revocation list |
+| Otorisasi | Semua query domain difilter `user_id` dari token | Mencegah akses lintas akun |
+| Data sensitif | `PasswordHash` diberi `json:"-"` | Prompt AI melarang NIK penuh/OTP/PIN |
+| Transport | Diharapkan TLS di reverse proxy | Service sendiri berjalan HTTP |
+| CORS | `CORS_ORIGINS` (default `*`) + preflight 204 | Persempit di produksi |
+| Rate limit | Per IP / user, in-memory | Perlu Redis bila API di-scale horizontal |
+| Recovery | `gin.CustomRecovery` → 500 tanpa stack ke klien | Stack hanya ke log server |
+| Input | `binding` tag Gin pada semua request body | Validasi URL foto, koordinat, panjang teks |
+| Soft delete | `gorm.DeletedAt` | Data tidak langsung hilang |
+
+Belum tersedia: verifikasi email/telepon, reset password, rotasi refresh token, audit log, 2FA, enkripsi kolom sensitif, dan pembatasan role petugas/admin. Endpoint IKD menerima `face_verification_token` tanpa memverifikasinya ke layanan biometrik.
+
 ---
 
-## Mobile App
+## Frontend Documentation
 
-### Stack
+### Framework & Stack
 
 | Bagian | Teknologi |
 | --- | --- |
 | Framework | Expo SDK 58, React Native 0.88 |
 | Bahasa | TypeScript (strict) |
-| Routing | Expo Router (file-based, typed routes) |
+| Routing | Expo Router 58 (file-based, typed routes) |
 | Styling | NativeWind 4 + Tailwind CSS 3 |
 | Animasi | React Native Reanimated |
-| Ikon/aset | Expo Image, Expo Symbols |
+| Ikon/aset | Emoji, Expo Image, Expo Symbols |
+| Safe area | React Native Safe Area Context |
 | Build & distribusi | EAS (build, submit, update) |
 
 Konfigurasi Expo (`app.json`) memakai `scheme: "jabarin"`, `userInterfaceStyle: "automatic"`, `experiments.reactCompiler: true`, dan `experiments.typedRoutes: true`.
 
-### Pola Navigasi
+### Struktur Routing
 
 - `src/app/` adalah direktori route. Setiap berkas di dalamnya otomatis menjadi layar; `_layout.tsx` mendefinisikan navigator.
 - `_layout.tsx` membungkus aplikasi dengan `<Stack screenOptions={{ headerShown: false }} />` setelah mengimpor `global.css`.
 - Navigasi antar halaman memakai `Link` dari `expo-router` (contoh: `explore.tsx` → beranda).
-- Perpindahan tab di dalam Beranda **belum** memakai router; `index.tsx` menyimpan `activeTab` di state lokal dan `BottomNav` memanggil `onSelect`. Ini sederhana dan cepat, tetapi belum mendukung deep link per tab.
+- Perpindahan tab di dalam Beranda **belum** memakai router; `index.tsx` menyimpan `activeTab` di state lokal dan `BottomNav` memanggil `onSelect`. Sederhana dan cepat, tetapi belum mendukung deep link per tab.
 
-### Struktur UI
+### Struktur Komponen UI
+
+```text
+src/
+├── app/
+│   ├── _layout.tsx        Root Stack navigator (header disembunyikan)
+│   ├── index.tsx          Layar Beranda
+│   └── explore.tsx        Layar katalog layanan
+├── components/
+│   ├── bottom-nav.tsx     Tab bar kustom (5 tab, bottom inset)
+│   └── service-card.tsx   Kartu layanan grid 4 kolom
+├── constants/
+│   └── theme.ts           Colors, Fonts, Spacing, insets
+└── hooks/
+    ├── use-color-scheme.ts
+    ├── use-color-scheme.web.ts
+    └── use-theme.ts
+```
+
+Hierarki layar:
 
 ```text
 Beranda (index.tsx)
@@ -155,7 +302,20 @@ Explore (explore.tsx)
 └── Empty state bila tidak ada hasil
 ```
 
-`ServiceCard` (`src/components/service-card.tsx`) adalah komponen grid 4 kolom (lebar `23.4%`) dengan ikon emoji, judul, dan accessibility label. `BottomNav` menangani `bottomInset` agar tidak bertabrakan dengan home indicator iOS maupun navigation bar Android.
+`ServiceCard` adalah grid 4 kolom (lebar `23.4%`) berisi ikon emoji, judul, dan accessibility label. `BottomNav` menangani `bottomInset` agar tidak bertabrakan dengan home indicator iOS maupun navigation bar Android, serta memakai `accessibilityRole="tab"` dan `accessibilityState`.
+
+### Aset
+
+| Aset | Lokasi | Dipakai oleh |
+| --- | --- | --- |
+| Banner Beranda | `assets/images/banner-jabarin.png` | `src/app/index.tsx` |
+| Ikon tab (home/explore, @1x–@3x) | `assets/images/tabIcons/` | Belum direferensikan kode; bottom nav memakai emoji |
+| Ikon iOS | `assets/expo.icon/` (ikon komposit) | `app.json` → `ios.icon` |
+| Splash screen | `assets/images/splash-icon.png` | `app.json` (plugin `expo-splash-screen`) |
+| Ikon aplikasi Android | `assets/images/android-icon-*.png` | `app.json` → `android.adaptiveIcon` |
+| Favicon web | `assets/images/favicon.png` | `app.json` → `web.favicon` |
+
+> Catatan: `app.json` juga mereferensikan `assets/images/icon.png`, tetapi berkas tersebut belum tersedia. Lihat [Catatan perbaikan](#catatan-perbaikan).
 
 ### Tema
 
@@ -189,12 +349,13 @@ Artinya, mobile app pada kondisi ini adalah **UI shell** yang siap disambungkan 
 | `npx tsc --noEmit` | Typecheck |
 | `npx expo-doctor` | Diagnosa dependensi & konfigurasi |
 | `npx expo install <pkg>` | Menambah paket versi SDK-compatible |
+| `npm run reset-project` | Menjalankan `scripts/reset-project.js` |
 
 > Gunakan selalu `npx expo install`, bukan `npm install`, untuk dependensi yang menyentuh API native agar versinya cocok dengan SDK 58.
 
 ---
 
-## Backend Service
+## Backend Documentation
 
 ### Stack
 
@@ -237,12 +398,12 @@ cmd/api/main.go
           └── ai: Gemini client + prompt builder
 ```
 
-- **`Handler`** menyimpan tiga dependensi: `*gorm.DB`, `*config.Config`, dan `*ai.Client`. Handler tidak memegang state global lain, sehingga mudah diuji dengan DB tiruan.
+- **`Handler`** menyimpan tiga dependensi: `*gorm.DB`, `*config.Config`, dan `*ai.Client`. Tidak ada state global lain, sehingga mudah diuji dengan DB tiruan.
 - **`httpx`** memusatkan format respons agar semua endpoint konsisten.
 - **`middleware`** bersifat generik: `Auth(secret)` mengisi `auth_user_id` di context, `UserID(c)` mengambilnya kembali.
-- **`refNumber(prefix)`** menghasilkan nomor registrasi `PREFIX-YYYY-NNNN` memakai `crypto/rand` (bukan `math/rand`).
+- **`refNumber(prefix)`** menghasilkan `PREFIX-YYYY-NNNN` memakai `crypto/rand`.
 
-### Environment
+### Environment & `.env.example`
 
 | Variabel | Default | Keterangan |
 | --- | --- | --- |
@@ -256,13 +417,30 @@ cmd/api/main.go
 | `CORS_ORIGINS` | `*` | Daftar origin dipisah koma |
 | `SEED_DATA` | `true` | Sinkronisasi katalog saat start |
 
+Isi `service/.env.example` yang disediakan repo:
+
+```dotenv
+APP_ENV=development
+PORT=8080
+
+DATABASE_URL=postgres://postgres:postgres@localhost:5432/jabarin?sslmode=disable
+
+JWT_SECRET=ganti dengan random key
+JWT_TTL=720h
+
+# Ambil API key dari Google AI Studio: https://aistudio.google.com/apikey
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+
+CORS_ORIGINS=*
+SEED_DATA=true
+```
+
+Salin menjadi `.env` lalu ubah `JWT_SECRET` (dan `GEMINI_API_KEY` bila ingin chat AI aktif). Karena `JWT_SECRET` pada contoh mengandung spasi, bungkus nilainya dengan tanda kutip saat diekspor ke shell: `JWT_SECRET="ganti dengan random key"`.
+
 Perintah pengembangan tersedia lewat `Makefile`: `make run`, `build`, `fmt`, `vet`, `test`, `tidy`, `docker-up`, `docker-down`.
 
----
-
-## Domain & Model Data
-
-### Diagram Relasi
+### Database Schema
 
 ```mermaid
 erDiagram
@@ -325,12 +503,10 @@ erDiagram
     }
 ```
 
-### Tabel
-
 | Tabel | Isi | Catatan |
 | --- | --- | --- |
 | `users` | Data warga | NIK 16 digit unik, telepon unik, email opsional, `password_hash` tidak pernah diserialisasi (`json:"-"`) |
-| `services` | Katalog layanan | Unik per `slug`, `requirements` berupa JSON array, urutan tampil lewat kolom `order` |
+| `services` | Katalog layanan | Unik per `slug`, `requirements` JSON array, urutan tampil lewat kolom `order` |
 | `applications` | Pengajuan berkas | `ref_number` unik, `payload` JSONB fleksibel, relasi ke `services` |
 | `application_events` | Riwayat status | Satu baris per perubahan status; dipakai sebagai timeline |
 | `queue_tickets` | Tiket antrean | Nomor per layanan + lokasi + hari, kode berprefiks kategori |
@@ -361,13 +537,11 @@ Semua tabel memakai `Base`: UUID primary key, `created_at`, `updated_at`, dan `d
 - **Dashboard** adalah endpoint agregat: profil ringkas, jumlah berkas aktif, jumlah aduan aktif, kode antrean aktif, berkas terakhir beserta event terbaru, dan 8 layanan aktif.
 - **Katalog layanan** di-seed dengan 8 entri: Dukcapil, Kesehatan, Pajak PBB, Lapor!, Izin NIB, Antrean, Bansos, Profil IKD. Upsert memakai konflik pada `slug`, jadi aman dijalankan berulang.
 
----
-
-## Kontrak API
+### API Endpoints
 
 Base path: `/api/v1` (kecuali `/health`).
 
-### Envelope Respons
+#### Envelope Respons
 
 ```json
 {
@@ -379,7 +553,7 @@ Base path: `/api/v1` (kecuali `/health`).
 
 Kegagalan memakai bentuk yang sama dengan `success: false`, `message`, dan `errors` opsional. Pagination membaca `?page` (1–10.000) dan `?per_page` (1–100, default 20); nilai tidak valid jatuh ke default.
 
-### Endpoint Publik
+#### Endpoint Publik
 
 | Method | Path | Fungsi |
 | --- | --- | --- |
@@ -389,7 +563,7 @@ Kegagalan memakai bentuk yang sama dengan `success: false`, `message`, dan `erro
 | GET | `/api/v1/services` | Katalog (`?q=`, `?category=`, `?page=`, `?per_page=`) |
 | GET | `/api/v1/services/:slug` | Detail layanan + syarat dokumen |
 
-### Endpoint Terautentikasi (`Authorization: Bearer <token>`)
+#### Endpoint Terautentikasi (`Authorization: Bearer <token>`)
 
 | Method | Path | Fungsi |
 | --- | --- | --- |
@@ -414,7 +588,7 @@ Kegagalan memakai bentuk yang sama dengan `success: false`, `message`, dan `erro
 | GET | `/api/v1/chat/sessions/:id` | Riwayat satu sesi |
 | DELETE | `/api/v1/chat/sessions/:id` | Hapus sesi |
 
-### Rate Limit
+#### Rate Limit
 
 | Grup | Batas | Kunci |
 | --- | --- | --- |
@@ -424,7 +598,7 @@ Kegagalan memakai bentuk yang sama dengan `success: false`, `message`, dan `erro
 
 Rate limiter disimpan **in-memory** per proses dan mengirim header `Retry-After` saat limit terlampaui (HTTP 429). Karena tidak memakai Redis, batas berlaku per instance API.
 
-### Contoh
+#### Contoh
 
 ```bash
 # Registrasi
@@ -443,9 +617,7 @@ curl http://localhost:8080/api/v1/dashboard/summary \
   -H "Authorization: Bearer $TOKEN"
 ```
 
----
-
-## Subsistem Asisten AI
+### Subsistem Asisten AI
 
 Asisten "Jabarin" adalah fitur chat berbasis Gemini Flash. Alurnya:
 
@@ -476,66 +648,121 @@ Detail implementasi:
 - Klien memanggil `POST {baseURL}/models/{model}:generateContent` dengan header `x-goog-api-key`, timeout HTTP 60 detik, dan batas baca body 4 MB.
 - Request handler memakai context timeout **45 detik**; parameter generasi: `temperature 0.4`, `topP 0.9`, `maxOutputTokens 1024`.
 - Riwayat dibatasi **20 pesan terakhir** dan dikirim berurutan kronologis.
-- `session_id` bersifat opsional. Tanpa `session_id`, sesi baru dibuat dengan judul dari 60 karakter pertama pesan.
+- `session_id` opsional. Tanpa `session_id`, sesi baru dibuat dengan judul dari 60 karakter pertama pesan.
 - Konteks akun disuntikkan ke system prompt: nama, domisili, status IKD, jumlah berkas aktif, jumlah aduan aktif, kode antrean aktif, dan katalog layanan.
 - System prompt (`internal/ai/prompt.go`) membatasi topik pada layanan publik Jawa Barat, melarang meminta/mengulang NIK lengkap, PIN, OTP, dan password, melarang mengarang nomor registrasi/tarif/kebijakan, serta mengarahkan kondisi darurat ke 112.
-- `tokens_used` disimpan pada pesan model untuk keperluan pemantauan biaya.
-- Bila `GEMINI_API_KEY` kosong, endpoint tetap mengembalikan **200** dengan `degraded: true` dan panduan statis, sehingga UI chat tidak perlu menangani keadaan khusus.
-- Bila panggilan ke Gemini gagal (network/5xx/prompt diblokir), endpoint mengembalikan **502** dengan pesan "Asisten AI sedang tidak dapat dihubungi".
+- `tokens_used` disimpan pada pesan model untuk pemantauan biaya.
+- Bila `GEMINI_API_KEY` kosong, endpoint tetap mengembalikan **200** dengan `degraded: true` dan panduan statis.
+- Bila panggilan Gemini gagal (network/5xx/prompt diblokir), endpoint mengembalikan **502**.
 
 ---
 
-## Keamanan
+## Petunjuk Localhost
 
-| Area | Implementasi | Catatan |
+Panduan ini menjalankan **API + database + aplikasi mobile** di satu laptop. Urutannya: siapkan dependencies → jalankan database → jalankan API → jalankan mobile.
+
+### 1. Dependencies yang Harus Terpasang
+
+| Kebutuhan | Versi/syarat | Cek dengan |
 | --- | --- | --- |
-| Password | bcrypt default cost | Panjang 8–72 divalidasi saat registrasi |
-| Token | JWT HS256, klaim `uid` + `nik`, issuer `jabarin-service`, TTL `720h` | Tidak ada refresh token / revocation list |
-| Otorisasi | Semua query domain difilter `user_id` dari token | Mencegah akses lintas akun |
-| Data sensitif | `PasswordHash` diberi `json:"-"` | AI prompt melarang penerimaan NIK penuh/OTP/PIN |
-| Transport | Diharapkan TLS di reverse proxy | Service sendiri berjalan HTTP |
-| CORS | `CORS_ORIGINS` (default `*`) + preflight 204 | Persempit di produksi |
-| Rate limit | Per IP / user, in-memory | Perlu Redis bila API di-scale horizontal |
-| Recovery | `gin.CustomRecovery` → 500 tanpa stack ke klien | Stack hanya ke log server |
-| Input | `binding` tag Gin pada semua request body | Validasi URL foto, koordinat, panjang teks |
-| Soft delete | `gorm.DeletedAt` | Data tidak langsung hilang |
-
-Belum tersedia: verifikasi email/telepon, reset password, rotasi refresh token, audit log, 2FA, enkripsi kolom sensitif, dan pembatasan role petugas/admin. Endpoint IKD saat ini menerima `face_verification_token` tanpa memverifikasinya ke layanan biometrik.
-
----
-
-## Menjalankan Proyek
-
-### Prasyarat
-
-- Go (sesuai `go.mod`)
-- Docker + Docker Compose (opsional, untuk Postgres/API)
-- Node.js LTS + npm
-- Expo Go, Android Emulator, atau iOS Simulator
-
-### 1. Backend dengan Docker
+| Go | Minimal mengikuti `go.mod` (toolchain 1.26) | `go version` |
+| PostgreSQL | 16 (atau via Docker) | `psql --version` |
+| Docker + Compose | Opsional, untuk jalur cepat | `docker --version` |
+| Node.js | LTS yang kompatibel dengan Expo SDK 58 | `node -v` |
+| npm | Ikut Node.js | `npm -v` |
+| Git | Versi apa pun | `git --version` |
+| Expo Go / emulator | Untuk menjalankan app di perangkat | — |
 
 ```bash
-cd service
-cp .env.example .env        # isi GEMINI_API_KEY bila ingin chat AI aktif
-docker compose up -d --build
-curl http://localhost:8080/health
+# macOS (Homebrew) — contoh
+brew install go postgresql@16 node
+# atau, bila memakai Docker:
+brew install --cask docker
 ```
 
-Compose menjalankan `postgres:16-alpine` (healthcheck `pg_isready`) dan API yang menunggu database sehat.
+> Di Windows, gunakan WSL2 untuk backend Go agar perintah `make` dan `export` berjalan seperti di dokumentasi. Mobile app bisa dijalankan dari Windows secara langsung.
 
-### 2. Backend lokal
+### 2. Clone Repositori
+
+```bash
+git clone https://github.com/jyowl/jabarin-app.git
+cd jabarin-app
+```
+
+### 3. Siapkan Environment Backend
 
 ```bash
 cd service
 cp .env.example .env
-export $(grep -v '^#' .env | xargs)
+```
+
+Buka `.env` lalu sesuaikan:
+
+- `JWT_SECRET` — ganti dengan string acak, contoh hasil `openssl rand -hex 32`.
+- `GEMINI_API_KEY` — opsional; isi dari [Google AI Studio](https://aistudio.google.com/apikey). Kosongkan bila belum perlu, chat tetap jalan mode fallback.
+- `DATABASE_URL` — biarkan default bila memakai Docker Compose.
+
+### 4. Jalankan Database & API
+
+**Jalur A — Docker (paling mudah, database + API sekaligus)**
+
+```bash
+# dari folder service/
+docker compose up -d --build
+docker compose logs -f api
+```
+
+**Jalur B — PostgreSQL lokal + Go**
+
+```bash
+# dari folder service/
+createdb jabarin        # sekali saja, atau via psql/DB client
+set -a && source .env && set +a
 go run ./cmd/api
 ```
 
-Pastikan PostgreSQL aktif dan `DATABASE_URL` menunjuk ke database yang benar. Migrasi dan seeding berjalan otomatis saat start.
+Pada start pertama, tabel dibuat otomatis (`AutoMigrate`) dan 8 layanan di-seed (`SEED_DATA=true`).
 
-### 3. Mobile App
+### 5. Verifikasi API
+
+```bash
+curl http://localhost:8080/health
+```
+
+Respons yang diharapkan:
+
+```json
+{
+  "status": "ok",
+  "env": "development",
+  "ai": { "provider": "gemini", "model": "gemini-2.5-flash", "ready": false },
+  "time": "..."
+}
+```
+
+`"ready": false` berarti `GEMINI_API_KEY` belum diisi — bukan error. Uji endpoint nyata:
+
+```bash
+# Katalog layanan (publik)
+curl "http://localhost:8080/api/v1/services?per_page=3"
+
+# Registrasi lalu simpan token
+curl -X POST http://localhost:8080/api/v1/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"nik":"3204010101990001","full_name":"Budi Santoso","phone":"081234567890","password":"rahasia123","city":"Bandung"}'
+```
+
+Salin nilai `data.token` dari respons, lalu:
+
+```bash
+export TOKEN="<token-dari-respons>"
+curl http://localhost:8080/api/v1/dashboard/summary \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### 6. Jalankan Aplikasi Mobile
+
+Buka terminal baru (biarkan API tetap berjalan):
 
 ```bash
 cd mobile-app
@@ -543,9 +770,43 @@ npm install
 npm start
 ```
 
-Lalu tekan `i` (iOS), `a` (Android), atau `w` (web). Untuk perangkat fisik, komputer dan ponsel harus berada di jaringan yang sama.
+Kemudian pilih target:
 
-> **Catatan Expo:** `ios/` dan `android/` tidak ada di repo dan dihasilkan otomatis (Continuous Native Generation). Jangan mengeditnya manual; konfigurasi native dilakukan lewat `app.json` dan config plugin. Setelah menambah library ber-native code, buat development build (`npx expo run:ios|android` atau `eas build --profile development`).
+| Tombol | Target | Syarat |
+| --- | --- | --- |
+| `i` | iOS Simulator | macOS + Xcode |
+| `a` | Android Emulator | Android Studio + AVD aktif |
+| `w` | Browser (web) | — |
+| Scan QR | Expo Go di ponsel | Ponsel & laptop di Wi-Fi yang sama |
+
+Catatan versi: gunakan `npx expo install <paket>` untuk menambah dependensi, bukan `npm install` langsung. Bila preview tidak memuat perubahan, jalankan `npx expo start --clear`.
+
+Saat ini aplikasi mobile **tidak memerlukan API** untuk tampil, karena datanya masih statis. API cukup diverifikasi lewat `curl` di langkah 5. Ketika integrasi disambungkan, base URL diatur di `app.json` (`expo.extra.apiBaseUrl`) dan untuk perangkat fisik gunakan IP LAN laptop (contoh `http://192.168.1.10:8080`), **bukan** `localhost`.
+
+### 7. Daftar Periksa Cepat
+
+| Cek | Perintah | Hasil benar |
+| --- | --- | --- |
+| Go tersedia | `go version` | Versi ≥ yang diminta `go.mod` |
+| API hidup | `curl localhost:8080/health` | `status: ok` |
+| DB terhubung | log API saat start | Tidak ada `gagal konek database` |
+| Seed berjalan | log API | `seed: 8 layanan tersinkron` |
+| Auth berfungsi | `POST /auth/register` | `201` + `data.token` |
+| Mobile hidup | `npm start` | QR code & menu Metro muncul |
+
+### 8. Troubleshooting Lokal
+
+| Gejala | Penyebab umum | Solusi |
+| --- | --- | --- |
+| `gagal konek database` | PostgreSQL belum jalan / DSN salah | Jalankan `docker compose up -d postgres` atau cek `DATABASE_URL` |
+| `port 8080 already in use` | Proses lain memakai port | `lsof -i :8080` lalu hentikan, atau ubah `PORT` |
+| `export: ganti with random key` | Nilai `.env` berisi spasi tanpa kutip | Tulis `JWT_SECRET="ganti dengan random key"` atau string tanpa spasi |
+| Chat membalas panduan statis | `GEMINI_API_KEY` kosong | Isi API key lalu restart API |
+| Chat membalas 502 | Key salah, kuota habis, atau jaringan | Cek log API dan status kuota AI Studio |
+| Build Docker gagal di tahap Go | Base image lebih lama dari `go.mod` | Sesuaikan `FROM golang:...` di `Dockerfile` |
+| Metro gagal resolve modul | Cache atau path salah | `npx expo start --clear`, cek path import |
+| Ponsel tidak bisa akses API | Memakai `localhost` / beda jaringan | Pakai IP LAN laptop + pastikan firewall mengizinkan port 8080 |
+| `npx tsc --noEmit` error tipe | Perubahan belum sinkron | Perbaiki tipe; jangan abaikan strict mode |
 
 ---
 
@@ -553,7 +814,7 @@ Lalu tekan `i` (iOS), `a` (Android), atau `w` (web). Untuk perangkat fisik, komp
 
 Saat ini integrasi belum diimplementasikan. Agar tersambung, empat lapisan berikut perlu ditambahkan di `mobile-app`:
 
-1. **Konfigurasi base URL** — tambahkan `expo.extra.apiBaseUrl` di `app.json`, baca lewat `expo-constants`. Untuk perangkat fisik gunakan IP LAN komputer, bukan `localhost`.
+1. **Konfigurasi base URL** — tambahkan `expo.extra.apiBaseUrl` di `app.json`, baca lewat `expo-constants`.
 2. **HTTP client** — pembungkus `fetch` yang menyisipkan `Authorization: Bearer <token>`, menangani envelope `{ success, data, meta }`, dan melempar error terstruktur.
 3. **Auth flow** — simpan token di secure storage (`expo-secure-store`), sediakan context `AuthProvider`, dan screen login/registrasi yang memanggil `/auth/login` dan `/auth/register`.
 4. **Data layer** — ganti data hardcoded dengan panggilan:
@@ -587,7 +848,7 @@ Topologi minimum yang disarankan:
 
 - Build image API memakai multi-stage `golang:alpine` → `alpine:3.20`, berjalan sebagai user non-root `jabarin` (UID 10001), `CGO_ENABLED=0`.
 - Skema database dikelola lewat `AutoMigrate` saat boot. Untuk produksi jangka panjang, pertimbangkan migrasi versi (mis. `golang-migrate` atau `goose`) agar perubahan destruktif terkontrol.
-- Rate limiter in-memory dan seeding saat start berjalan per instance. Bila API dijalankan lebih dari satu replika, pindahkan rate limit ke Redis dan jadikan seeding sebagai job terpisah (`SEED_DATA=false` di replika).
+- Rate limiter in-memory dan seeding saat start berjalan per instance. Bila API dijalankan lebih dari satu replika, pindahkan rate limit ke Redis dan jadikan seeding job terpisah (`SEED_DATA=false` di replika).
 - `WriteTimeout` 90 detik memberi ruang untuk panggilan Gemini (timeout internal 45 detik).
 - Mobile app didistribusikan lewat EAS: `eas build`, `eas submit`, dan `eas update` untuk OTA.
 
@@ -600,7 +861,7 @@ Topologi minimum yang disarankan:
 - Handler baru: tambahkan berkas di `internal/handlers/`, daftarkan route di `router.go`, dan pakai `httpx` untuk semua respons.
 - Jangan mengembalikan `gorm.DB` mentah ke klien; bentuk response eksplisit seperti `ticketResponse` agar kontrak stabil.
 - Operasi multi-tabel wajib memakai `h.db.Transaction`.
-- Nama pesan error untuk pengguna memakai bahasa Indonesia; detail teknis masuk `errors`, bukan `message`.
+- Pesan error untuk pengguna memakai bahasa Indonesia; detail teknis masuk `errors`, bukan `message`.
 - Jalankan `make fmt`, `make vet`, dan `make test` sebelum commit.
 - Konfigurasi baru harus lewat `config.Config`, bukan `os.Getenv` langsung di handler.
 
